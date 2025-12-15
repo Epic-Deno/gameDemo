@@ -1,0 +1,138 @@
+<!--
+ * @Description: main description
+ * @Author: zhang zhen
+ * @Date: 2024-08-16 11:04:58
+ * @LastEditors: zhang zhen
+ * @LastEditTime: 2024-08-16 14:59:14
+ * @FilePath: /animation/sendWord.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>单词的动画</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        #app {
+            width: 100%;
+        }
+        .scroll-box {
+            margin: 20px auto;
+            width: 1470px;
+            overflow: hidden;
+            background: chartreuse;
+        }
+        .words-list {
+            display: flex;
+            align-items: center;
+            grid-gap: 0 30px;
+            margin-top: 13px;
+        }
+
+        .words-list-item {
+            min-width: 336px;
+            height: 420px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            transition: all 0.5s ease-in-out;
+        }
+        .hidden {
+            transform: translateY(100%);
+            /* display: none; */
+            transition: all 0.5s ease-out;
+        }
+        [v-cloak] {
+            display: none;
+        }
+    </style>
+    <script src="./vue.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <div class="scroll-box">
+            <div class="words-list">
+                <div class="words-list-item" v-for="(item, index) in dataList" :key="index" :class="`${item.isPass ? 'hidden' : ''}`" @click="handleClick(item, index)">{{ item.name }} {{item.isPass}}</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const app = new Vue({
+            el: '#app',
+            data: {
+                dataList: [
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/fe3dfc16595ef9003f14fe31f65a4cec.png',
+                        name: '千禾味业',
+                        desc: '0添加酱油挑战行业霸主',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230713/e2c542ef7d1275932172b25a1d780c88.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/c694f91296b6ec9c1d0d69585db04d0e.png',
+                        name: '王老吉',
+                        desc: '“正宗”定位调动心智力量，助力王老吉重归凉茶王者地位',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230713/31a2aa8f40000515e09fb557be37abbb.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/5e7aa3be15a081e9a5764d98e57e8191.png',
+                        name: '洽洽',
+                        desc: '布局第二增长曲线，助力洽洽把握坚果行业增长极',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230712/5e7aa3be15a081e9a5764d98e57e8191.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230721/60a20dc7916e34e2e1e56c1e9a7c7999.png',
+                        name: '三只松鼠',
+                        desc: '打造坚果领导者定位，集聚品牌势能，助力线下拓展',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230721/8833b94673d2922b63f8a5b545aabb52.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230713/e6b604cca9073d1832b155f8fb532bec.png',
+                        name: '德邦',
+                        desc: '品类创新助力德邦晋升大件快递之王',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230713/2f7d708c8a034a578218686bfae49e19.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/27ffea3dc8a373e058c39ce7301a5170.png',
+                        name: '习酒1',
+                        desc: '大师与时间的杰作，成就酱酒数一数二品牌',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230721/8833b94673d2922b63f8a5b545aabb52.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/27ffea3dc8a373e058c39ce7301a5170.png',
+                        name: '习酒2',
+                        desc: '大师与时间的杰作，成就酱酒数一数二品牌',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230721/8833b94673d2922b63f8a5b545aabb52.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/27ffea3dc8a373e058c39ce7301a5170.png',
+                        name: '习酒3',
+                        desc: '大师与时间的杰作，成就酱酒数一数二品牌',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230721/8833b94673d2922b63f8a5b545aabb52.png'
+                    }
+                ]
+            },
+            methods: {
+                handleClick(item, index) {
+                    console.log(item)
+                    item.isPass = true;
+                    this.$forceUpdate();
+                    
+                    setTimeout(() => {
+                        document.querySelectorAll('.words-list-item')[index].style.display = 'none';
+                    }, 600)
+                    // this.dataList.splice(index, 1)
+                //     let count = this.dataList.reduce((prev, next) => prev+= next.isPass ? 1 : 0, 0);
+                //     document.querySelector('.words-list').style.transform = `translateX(-${count * 366}px)`;
+                },
+            }
+        })
+    </script>
+</body>
+
+</html>
