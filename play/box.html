@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>经典推箱子 - 多关卡版</title>
+    <style>
+        :root {
+            --cell-size: 40px;
+            --bg-color: #2c3e50;
+            --wall-color: #34495e;
+            --floor-color: #ecf0f1;
+            --target-color: #e74c3c;
+            --box-color: #d35400;
+            --box-ok-color: #27ae60;
+            --player-color: #2980b9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a252f;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none; /* 防止双击选中文字 */
+        }
+
+        h1 { margin-top: 20px; margin-bottom: 10px; }
+        
+        .info-panel {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 8px 16px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #2980b9; }
+        button:active { transform: scale(0.98); }
+        button.secondary { background-color: #95a5a6; }
+        button.secondary:hover { background-color: #7f8c8d; }
+
+        /* 游戏容器 */
+        #game-board {
+            display: grid;
+            background-color: var(--wall-color);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* 格子样式 */
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* 墙 */
+        .cell.wall {
+            background-color: var(--wall-color);
+            border: 1px solid rgba(0,0,0,0.2);
+            background-image: linear-gradient(45deg, #3d566e 25%, transparent 25%, transparent 75%, #3d566e 75%, #3d566e),
+            linear-gradient(45deg, #3d566e 25%, transparent 25%, transparent 75%, #3d566e 75%, #3d566e);
+            background-size: 10px 10px;
+            background-position: 0 0, 5px 5px;
+        }
+
+        /* 地板 */
+        .cell.floor { background-color: var(--floor-color); }
+
+        /* 目标点 */
+        .cell.target::after {
+            content: '';
+            position: absolute;
+            width: 30%;
+            height: 30%;
+            background-color: var(--target-color);
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        /* 箱子 */
+        .cell.box::before {
+            content: '';
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            background-color: var(--box-color);
+            border: 2px solid #a04000;
+            border-radius: 4px;
+            z-index: 2;
+            /* 箱子纹理 */
+            background-image: linear-gradient(45deg, transparent 45%, #a04000 45%, #a04000 55%, transparent 55%),
+                              linear-gradient(-45deg, transparent 45%, #a04000 45%, #a04000 55%, transparent 55%);
+        }
+
+        /* 箱子在目标点上 (变色) */
+        .cell.box-ok::before {
+            background-color: var(--box-ok-color);
+            border-color: #1e8449;
+            background-image: none; /* 完成后去掉叉号纹理，显得更干净 */
+            box-shadow: 0 0 10px var(--box-ok-color);
+        }
+        
+        /* 玩家 */
+        .cell.player {
+            z-index: 5;
+        }
+        .cell.player::before {
+            content: '👷'; /* 使用emoji作为玩家 */
+            font-size: 28px;
+            z-index: 10;
+        }
+
+        /* 提示层 */
+        #message-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            display: none;
+        }
+        #message-overlay h2 { color: #2ecc71; font-size: 3rem; margin-bottom: 20px; }
+        
+        .tips {
+            font-size: 14px;
+            color: #bdc3c7;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📦 推箱子大师</h1>
+
+    <div class="info-panel">
+        <span id="level-display">第 1 关</span>
+        <span>步数: <span id="step-count">0</span></span>
+    </div>
+
+    <div class="controls">
+        <button class="secondary" onclick="undo()" title="Z键">↩️ 撤销一步</button>
+        <button class="secondary" onclick="resetLevel()" title="R键">🔄 重置本关</button>
+        <button onclick="prevLevel()">上一关</button>
+        <button onclick="nextLevel()">下一关</button>
+    </div>
+
+    <div id="game-board"></div>
+
+    <div class="tips">
+        WASD 或 方向键移动 | R 重置 | Z 撤销
+    </div>
+
+    <div id="message-overlay">
+        <h2>🎉 通关!</h2>
+        <button onclick="nextLevel()" style="font-size: 24px; padding: 15px 40px;">进入下一关</button>
+    </div>
+
+<script>
+    /**
+     * 游戏配置与数据
+     * 符号说明：
+     * # : 墙壁
+     * - : 地板 (空格也可以，但用-看得清楚点)
+     * . : 目标点
+     * $ : 箱子
+     * * : 箱子在目标点上
+     * @ : 玩家
+     * + : 玩家在目标点上
+     */
+    const levels = [
+        // 第1关：教学
+        [
+            "  ##### ",
+            "###   # ",
+            "#.@$  # ",
+            "### . # ",
+            "  ##### "
+        ],
+        // 第2关：简单的转弯
+        [
+            "#####   ",
+            "#   #   ",
+            "#$  #   ",
+            "#  $##  ",
+            "#  . #  ",
+            "##.  #  ",
+            "######  "
+        ],
+        // 第3关：双箱分流
+        [
+            "  ####  ",
+            "###  ####",
+            "#     $ #",
+            "# #  #$ #",
+            "# . .#@ #",
+            "#########"
+        ],
+        // 第4关：经典布局
+        [
+            "#######",
+            "#     #",
+            "# .$. #",
+            "#. $@ #",
+            "# $ . #",
+            "#     #",
+            "#######"
+        ],
+        // 第5关：狭窄通道
+        [
+            "#######",
+            "#     #",
+            "# .$$ #",
+            "##$ $##",
+            "# .@. #",
+            "#     #",
+            "#######"
+        ]
+    ];
+
+    let currentLevelIndex = 0;
+    let currentMap = []; // 当前地图的二维数组状态
+    let steps = 0;
+    let historyStack = []; // 撤销栈
+    let playerPos = {x: 0, y: 0};
+
+    const boardEl = document.getElementById('game-board');
+    const stepEl = document.getElementById('step-count');
+    const levelEl = document.getElementById('level-display');
+    const overlay = document.getElementById('message-overlay');
+
+    // 初始化游戏
+    function initGame() {
+        loadLevel(currentLevelIndex);
+        
+        // 键盘监听
+        document.addEventListener('keydown', (e) => {
+            if (overlay.style.display === 'flex' && e.key === 'Enter') {
+                nextLevel();
+                return;
+            }
+
+            switch(e.key) {
+                case 'ArrowUp': case 'w': case 'W': move(-1, 0); break;
+                case 'ArrowDown': case 's': case 'S': move(1, 0); break;
+                case 'ArrowLeft': case 'a': case 'A': move(0, -1); break;
+                case 'ArrowRight': case 'd': case 'D': move(0, 1); break;
+                case 'z': case 'Z': undo(); break;
+                case 'r': case 'R': resetLevel(); break;
+            }
+        });
+    }
+
+    // 解析并加载关卡
+    function loadLevel(index) {
+        if (index < 0) index = 0;
+        if (index >= levels.length) {
+            alert("恭喜你通关了所有关卡！回到第一关。");
+            index = 0;
+        }
+
+        currentLevelIndex = index;
+        levelEl.innerText = `第 ${index + 1} 关`;
+        steps = 0;
+        stepEl.innerText = steps;
+        historyStack = [];
+        overlay.style.display = 'none';
+
+        // 深度复制地图数据，因为游戏过程中会修改它
+        const rawMap = levels[index];
+        currentMap = rawMap.map(row => row.split(''));
+        
+        // 找到玩家位置
+        for(let r=0; r<currentMap.length; r++) {
+            for(let c=0; c<currentMap[r].length; c++) {
+                if(currentMap[r][c] === '@' || currentMap[r][c] === '+') {
+                    playerPos = {x: r, y: c};
+                }
+            }
+        }
+
+        render();
+    }
+
+    // 渲染地图
+    function render() {
+        boardEl.innerHTML = '';
+        const rows = currentMap.length;
+        const cols = currentMap[0].length; // 假设每行长度一致或取最大
+
+        // 设置 Grid 布局
+        boardEl.style.gridTemplateRows = `repeat(${rows}, var(--cell-size))`;
+        boardEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell-size))`;
+
+        for(let r=0; r<rows; r++) {
+            for(let c=0; c<cols; c++) {
+                const char = currentMap[r][c] || ' '; // 防止越界
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+
+                // 根据字符添加样式类
+                if (char === '#') cell.classList.add('wall');
+                else cell.classList.add('floor'); // 默认都是地板
+
+                if (char === '.' || char === '+' || char === '*') cell.classList.add('target');
+                if (char === '$') cell.classList.add('box');
+                if (char === '*') { cell.classList.add('box'); cell.classList.add('box-ok'); }
+                if (char === '@' || char === '+') cell.classList.add('player');
+
+                boardEl.appendChild(cell);
+            }
+        }
+    }
+
+    // 移动逻辑
+    function move(dx, dy) {
+        const x = playerPos.x;
+        const y = playerPos.y;
+        const nextX = x + dx;
+        const nextY = y + dy;
+        const nextNextX = nextX + dx;
+        const nextNextY = nextY + dy;
+
+        const nextChar = currentMap[nextX][nextY];
+        
+        // 1. 撞墙
+        if (nextChar === '#') return;
+
+        // 2. 移动动作发生前，记录历史用于撤销
+        // 保存当前地图的快照（深拷贝）和玩家位置
+        const mapSnapshot = currentMap.map(row => [...row]);
+        const state = {
+            map: mapSnapshot,
+            player: {...playerPos},
+            steps: steps
+        };
+
+        let moved = false;
+
+        // 3. 如果前方是地板或目标点 -> 直接移动
+        if ([' ', '.', '-'].includes(nextChar)) {
+            movePlayer(x, y, nextX, nextY);
+            moved = true;
+        }
+        // 4. 如果前方是箱子 -> 尝试推箱子
+        else if (['$', '*'].includes(nextChar)) {
+            const nextNextChar = currentMap[nextNextX][nextNextY];
+            // 如果箱子后面是地板或目标点 -> 可以推
+            if ([' ', '.', '-'].includes(nextNextChar)) {
+                moveBox(nextX, nextY, nextNextX, nextNextY);
+                movePlayer(x, y, nextX, nextY);
+                moved = true;
+            }
+        }
+
+        if (moved) {
+            historyStack.push(state);
+            // 限制撤销步数，防止内存溢出（可选）
+            if(historyStack.length > 50) historyStack.shift(); 
+            
+            steps++;
+            stepEl.innerText = steps;
+            render();
+            checkWin();
+        }
+    }
+
+    // 移动玩家数据更新
+    function movePlayer(fromX, fromY, toX, toY) {
+        const fromChar = currentMap[fromX][fromY];
+        const toChar = currentMap[toX][toY];
+
+        // 离开当前格
+        if (fromChar === '@') currentMap[fromX][fromY] = ' '; // 只是地板
+        else if (fromChar === '+') currentMap[fromX][fromY] = '.'; // 之前在目标点上，离开后剩下目标点
+
+        // 进入下一格
+        if (toChar === ' ') currentMap[toX][toY] = '@';
+        else if (toChar === '.') currentMap[toX][toY] = '+';
+        
+        playerPos = {x: toX, y: toY};
+    }
+
+    // 移动箱子数据更新
+    function moveBox(fromX, fromY, toX, toY) {
+        const fromChar = currentMap[fromX][fromY];
+        const toChar = currentMap[toX][toY];
+
+        // 箱子离开 (注意：玩家紧接着会进入 fromX, fromY，所以在 movePlayer 里处理该格子的后续状态，这里先把箱子拿走)
+        // 实际上在 movePlayer 调用前，fromX, fromY 还是箱子，这里只需要把箱子放到 toX, toY 即可
+        // 逻辑：箱子从 A 到 B。A 变成了无箱子状态（稍后被玩家占据），B 变成有箱子状态。
+
+        // 设置新位置的箱子
+        if (toChar === ' ') currentMap[toX][toY] = '$';
+        else if (toChar === '.') currentMap[toX][toY] = '*';
+    }
+
+    // 检查是否胜利
+    function checkWin() {
+        for(let r=0; r<currentMap.length; r++) {
+            for(let c=0; c<currentMap[r].length; c++) {
+                // 如果还有普通箱子 '$' (不在目标点上的箱子)，则没赢
+                if (currentMap[r][c] === '$') return; 
+            }
+        }
+        // 胜利
+        setTimeout(() => {
+            overlay.style.display = 'flex';
+        }, 100);
+    }
+
+    // 撤销功能
+    function undo() {
+        if (historyStack.length === 0) return;
+        const prevState = historyStack.pop();
+        currentMap = prevState.map;
+        playerPos = prevState.player;
+        steps = prevState.steps;
+        stepEl.innerText = steps;
+        render();
+    }
+
+    function resetLevel() {
+        if(confirm("确定要重置当前关卡吗？")) {
+            loadLevel(currentLevelIndex);
+        }
+    }
+
+    function nextLevel() {
+        loadLevel(currentLevelIndex + 1);
+    }
+
+    function prevLevel() {
+        loadLevel(currentLevelIndex - 1);
+    }
+
+    // 启动
+    initGame();
+
+</script>
+</body>
+</html>
