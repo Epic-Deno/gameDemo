@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网页版坦克大战</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="game-container">
+        <div class="ui-panel">
+            <h1>坦克大战</h1>
+            <p>方向键/WASD 移动 | 空格键 射击</p>
+            <p>分数: <span id="score">0</span></p>
+        </div>
+        
+        <!-- 游戏画布 -->
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        
+        <!-- 覆盖层：用于开始游戏（浏览器限制音频自动播放，需要交互） -->
+        <div id="startScreen" class="overlay">
+            <div class="message">
+                <h2>准备好了吗？</h2>
+                <button id="startBtn">开始游戏 & 播放音乐</button>
+            </div>
+        </div>
+
+        <div id="gameOverScreen" class="overlay hidden">
+            <div class="message">
+                <h2 style="color: red;">游戏结束</h2>
+                <p>最终得分: <span id="finalScore">0</span></p>
+                <button onclick="location.reload()">重新挑战</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 背景音乐 -->
+    <!-- 请确保目录下有名为 bgm.mp3 的文件，否则控制台会报错但游戏仍能运行 -->
+    <audio id="bgm" loop>
+        <source src="bgm.mp3" type="audio/mpeg">
+    </audio>
+
+    <script src="script.js"></script>
+</body>
+</html>
