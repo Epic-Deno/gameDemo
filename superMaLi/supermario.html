@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>超级玛丽游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .game-container {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            background-color: #87CEEB;
+            border: 3px solid #333;
+            overflow: hidden;
+        }
+
+        .game-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 100;
+            font-size: 14px;
+        }
+
+        .score-info {
+            display: flex;
+            gap: 20px;
+        }
+
+        .game-world {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 40px);
+            background: linear-gradient(to bottom, #87CEEB 0%, #B0E0E6 50%, #B0E0E6 100%);
+            overflow: hidden;
+            animation: skyMove 30s linear infinite;
+        }
+
+        /* 云朵 */
+        .game-world::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><ellipse cx="20" cy="20" rx="15" ry="10" fill="white" opacity="0.8"/><ellipse cx="35" cy="25" rx="20" ry="12" fill="white" opacity="0.8"/><ellipse cx="50" cy="20" rx="15" ry="10" fill="white" opacity="0.8"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><ellipse cx="20" cy="20" rx="15" ry="10" fill="white" opacity="0.8"/><ellipse cx="35" cy="25" rx="20" ry="12" fill="white" opacity="0.8"/><ellipse cx="50" cy="20" rx="15" ry="10" fill="white" opacity="0.8"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><ellipse cx="20" cy="20" rx="15" ry="10" fill="white" opacity="0.8"/><ellipse cx="35" cy="25" rx="20" ry="12" fill="white" opacity="0.8"/><ellipse cx="50" cy="20" rx="15" ry="10" fill="white" opacity="0.8"/></svg>');
+            background-size: 100px 50px, 150px 75px, 120px 60px;
+            background-position: 0px 50px, 400px 100px, 800px 80px;
+            background-repeat: no-repeat;
+            animation: cloudsMove 60s linear infinite;
+        }
+
+        @keyframes cloudsMove {
+            from { background-position: 0px 50px, 400px 100px, 800px 80px; }
+            to { background-position: 2000px 50px, 2400px 100px, 2800px 80px; }
+        }
+
+        .ground {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 2000px;
+            height: 50px;
+            background: linear-gradient(to bottom, #228B22 0%, #32CD32 50%, #228B22 100%);
+            border-top: 3px solid #228B22;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 地面装饰 */
+        .ground::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(0, 0, 0, 0.1) 20px, rgba(0, 0, 0, 0.1) 40px),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><circle cx="10" cy="10" r="5" fill="#228B22" opacity="0.5"/></svg>');
+            background-size: 100% 100%, 20px 20px;
+        }
+
+        /* 草地装饰 */
+        .ground::after {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background-image: 
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><path d="M0,10 Q5,5 10,10 Q15,5 20,10" fill="#32CD32" stroke="#228B22" stroke-width="0.5"/></svg>');
+            background-size: 20px 10px;
+        }
+
+        .platform {
+            position: absolute;
+            background: linear-gradient(to bottom, #8B4513 0%, #A0522D 50%, #8B4513 100%);
+            border: 2px solid #654321;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3), inset 0 2px 5px rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .platform:hover {
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), inset 0 2px 5px rgba(255, 255, 255, 0.3);
+        }
+
+        /* 平台装饰 */
+        .platform::after {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            right: 5px;
+            bottom: 5px;
+            background-image: 
+                repeating-linear-gradient(to right, #8B4513 0px, #8B4513 15px, #A0522D 15px, #A0522D 30px);
+            border-radius: 3px;
+            opacity: 0.5;
+        }
+
+        .player {
+            position: absolute;
+            width: 40px;
+            height: 60px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 60">
+                <!-- 马里奥身体 -->
+                <rect x="5" y="10" width="30" height="50" rx="5" fill="#E63946"/>
+                
+                <!-- 马里奥帽子 -->
+                <path d="M5,15 Q20,5 35,15 L35,25 L5,25 Z" fill="#E63946"/>
+                <circle cx="20" cy="20" r="3" fill="#F1FAEE"/>
+                
+                <!-- 马里奥脸 -->
+                <rect x="10" y="25" width="20" height="15" rx="3" fill="#F1FAEE"/>
+                
+                <!-- 眼睛 -->
+                <circle cx="15" cy="30" r="2" fill="#1D3557"/>
+                <circle cx="25" cy="30" r="2" fill="#1D3557"/>
+                
+                <!-- 嘴巴 -->
+                <path d="M15,35 Q20,40 25,35" stroke="#1D3557" stroke-width="1.5" fill="none"/>
+                
+                <!-- 胡子 -->
+                <path d="M10,35 L5,40" stroke="#1D3557" stroke-width="1"/>
+                <path d="M30,35 L35,40" stroke="#1D3557" stroke-width="1"/>
+                
+                <!-- 手臂 -->
+                <rect x="0" y="35" width="8" height="15" rx="3" fill="#F1FAEE"/>
+                <rect x="32" y="35" width="8" height="15" rx="3" fill="#F1FAEE"/>
+                
+                <!-- 手套 -->
+                <rect x="0" y="50" width="8" height="8" rx="2" fill="#1D3557"/>
+                <rect x="32" y="50" width="8" height="8" rx="2" fill="#1D3557"/>
+                
+                <!-- 腿 -->
+                <rect x="10" y="60" width="10" height="15" rx="3" fill="#1D3557"/>
+                <rect x="20" y="60" width="10" height="15" rx="3" fill="#1D3557"/>
+                
+                <!-- 鞋子 -->
+                <rect x="8" y="75" width="12" height="5" rx="2" fill="#E63946"/>
+                <rect x="20" y="75" width="12" height="5" rx="2" fill="#E63946"/>
+            </svg>');
+            background-size: cover;
+            background-position: center;
+            transition: all 0.05s ease;
+            z-index: 10;
+            animation: playerBounce 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes playerBounce {
+            from { transform: translateY(0px); }
+            to { transform: translateY(-2px); }
+        }
+
+        .enemy {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30">
+                <!-- 乌龟壳 -->
+                <ellipse cx="15" cy="15" rx="13" ry="10" fill="#2A9D8F"/>
+                
+                <!-- 乌龟壳纹理 -->
+                <path d="M15,5 L15,25" stroke="#264653" stroke-width="2"/>
+                <path d="M5,15 L25,15" stroke="#264653" stroke-width="2"/>
+                <path d="M10,8 L20,22" stroke="#264653" stroke-width="1"/>
+                <path d="M10,22 L20,8" stroke="#264653" stroke-width="1"/>
+                
+                <!-- 乌龟头 -->
+                <ellipse cx="22" cy="15" rx="5" ry="4" fill="#E9C46A"/>
+                
+                <!-- 乌龟眼睛 -->
+                <circle cx="24" cy="14" r="1" fill="#264653"/>
+                <circle cx="24" cy="16" r="1" fill="#264653"/>
+                
+                <!-- 乌龟腿 -->
+                <ellipse cx="8" cy="10" rx="3" ry="2" fill="#E9C46A"/>
+                <ellipse cx="8" cy="20" rx="3" ry="2" fill="#E9C46A"/>
+                <ellipse cx="22" cy="10" rx="3" ry="2" fill="#E9C46A"/>
+                <ellipse cx="22" cy="20" rx="3" ry="2" fill="#E9C46A"/>
+            </svg>');
+            background-size: cover;
+            background-position: center;
+            transition: all 0.05s ease;
+            animation: enemyMove 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes enemyMove {
+            from { transform: translateY(0px); }
+            to { transform: translateY(2px); }
+        }
+
+        .coin {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25">
+                <!-- 金币外圈 -->
+                <circle cx="12.5" cy="12.5" r="10" fill="#FFD166" stroke="#EAB308" stroke-width="1"/>
+                
+                <!-- 金币内圈 -->
+                <circle cx="12.5" cy="12.5" r="7" fill="#FFD166" stroke="#EAB308" stroke-width="0.5"/>
+                
+                <!-- 金币纹理 -->
+                <path d="M12.5,5 L12.5,20" stroke="#EAB308" stroke-width="0.5"/>
+                <path d="M5,12.5 L20,12.5" stroke="#EAB308" stroke-width="0.5"/>
+                <circle cx="12.5" cy="12.5" r="5" stroke="#EAB308" stroke-width="0.5" fill="none"/>
+                <circle cx="12.5" cy="12.5" r="2.5" stroke="#EAB308" stroke-width="0.5" fill="none"/>
+                
+                <!-- 金币高光 -->
+                <ellipse cx="10" cy="10" rx="3" ry="2" fill="#FFFFFF" opacity="0.5"/>
+            </svg>');
+            background-size: cover;
+            background-position: center;
+            animation: spin 1s linear infinite, coinFloat 0.5s ease-in-out infinite alternate;
+            z-index: 5;
+            filter: drop-shadow(0 0 5px #FFD166);
+        }
+
+        @keyframes coinFloat {
+            from { transform: translateY(0px) rotate(0deg); }
+            to { transform: translateY(-5px) rotate(360deg); }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 24px;
+            z-index: 200;
+            display: none;
+        }
+
+        .game-over button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #4ECDC4;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .game-over button:hover {
+            background-color: #45B7AA;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: grid;
+            grid-template-areas: 
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .control-btn:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .jump-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 80px;
+            height: 80px;
+            background-color: rgba(0, 0, 255, 0.7);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 100;
+        }
+
+        .jump-btn:hover {
+            background-color: rgba(0, 0, 255, 0.9);
+        }
+
+        .flag {
+            position: absolute;
+            width: 20px;
+            height: 150px;
+            background: linear-gradient(to bottom, #8B4513 0%, #A0522D 50%, #8B4513 100%);
+            border: 2px solid #654321;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .flag-pole {
+            position: absolute;
+            width: 8px;
+            height: 130px;
+            background: linear-gradient(to bottom, #C0C0C0 0%, #A9A9A9 50%, #C0C0C0 100%);
+            top: 10px;
+            left: 6px;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .flag-top {
+            position: absolute;
+            width: 60px;
+            height: 30px;
+            background: linear-gradient(45deg, #FF0000 0%, #DC281E 100%);
+            top: 20px;
+            left: 14px;
+            border: 1px solid #8B0000;
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            animation: flagWave 1s ease-in-out infinite alternate;
+        }
+
+        @keyframes flagWave {
+            from { transform: skewX(0deg); }
+            to { transform: skewX(-10deg); }
+        }
+
+        /* 旗子顶部装饰 */
+        .flag-top::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            width: 10px;
+            height: 10px;
+            background-color: #FFD700;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.8);
+        }
+
+        /* 树 */
+        .tree {
+            position: absolute;
+            width: 60px;
+            height: 100px;
+        }
+
+        .tree-trunk {
+            position: absolute;
+            bottom: 0;
+            left: 20px;
+            width: 20px;
+            height: 40px;
+            background: linear-gradient(to bottom, #8B4513 0%, #654321 100%);
+            border-radius: 2px;
+        }
+
+        .tree-leaves {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 60px;
+            height: 70px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 70"><circle cx="30" cy="20" r="25" fill="#228B22" opacity="0.8"/><circle cx="20" cy="40" r="20" fill="#228B22" opacity="0.8"/><circle cx="40" cy="40" r="20" fill="#228B22" opacity="0.8"/><circle cx="30" cy="55" r="25" fill="#228B22" opacity="0.8"/></svg>');
+            background-size: cover;
+            filter: drop-shadow(0 0 10px rgba(0, 128, 0, 0.5));
+        }
+
+        /* 蘑菇装饰 */
+        .mushroom {
+            position: absolute;
+            width: 30px;
+            height: 40px;
+        }
+
+        .mushroom-cap {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 30px;
+            height: 25px;
+            background: linear-gradient(to bottom, #FF6B6B 0%, #FF5252 100%);
+            border-radius: 15px 15px 0 0;
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+        }
+
+        .mushroom-stem {
+            position: absolute;
+            bottom: 0;
+            left: 10px;
+            width: 10px;
+            height: 15px;
+            background-color: #F0E68C;
+            border-radius: 0 0 5px 5px;
+        }
+
+        /* 粒子效果 */
+        .particle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background-color: #FFD700;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleFloat 1s ease-out forwards;
+            filter: drop-shadow(0 0 3px #FFD700);
+        }
+
+        @keyframes particleFloat {
+            0% { 
+                opacity: 1; 
+                transform: translateY(0) scale(1); 
+            }
+            100% { 
+                opacity: 0; 
+                transform: translateY(-50px) scale(0); 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <div class="score-info">
+                <div>分数: <span id="score">0</span></div>
+                <div>金币: <span id="coins">0</span></div>
+                <div>生命: <span id="lives">3</span></div>
+            </div>
+            <div>关卡: <span id="level">1</span></div>
+        </div>
+        
+        <div class="game-world" id="gameWorld">
+            <div class="ground"></div>
+            <div class="player" id="player"></div>
+            
+            <!-- 平台 -->
+            <div class="platform" style="width: 100px; height: 20px; left: 200px; bottom: 100px;"></div>
+            <div class="platform" style="width: 100px; height: 20px; left: 400px; bottom: 150px;"></div>
+            <div class="platform" style="width: 100px; height: 20px; left: 600px; bottom: 200px;"></div>
+            
+            <!-- 树 -->
+            <div class="tree" style="left: 100px; bottom: 50px;">
+                <div class="tree-trunk"></div>
+                <div class="tree-leaves"></div>
+            </div>
+            <div class="tree" style="left: 300px; bottom: 50px;">
+                <div class="tree-trunk"></div>
+                <div class="tree-leaves"></div>
+            </div>
+            <div class="tree" style="left: 500px; bottom: 50px;">
+                <div class="tree-trunk"></div>
+                <div class="tree-leaves"></div>
+            </div>
+            <div class="tree" style="left: 700px; bottom: 50px;">
+                <div class="tree-trunk"></div>
+                <div class="tree-leaves"></div>
+            </div>
+            <div class="tree" style="left: 1000px; bottom: 50px;">
+                <div class="tree-trunk"></div>
+                <div class="tree-leaves"></div>
+            </div>
+            <div class="tree" style="left: 1200px; bottom: 50px;">
+                <div class="tree-trunk"></div>
+                <div class="tree-leaves"></div>
+            </div>
+            <div class="tree" style="left: 1400px; bottom: 50px;">
+                <div class="tree-trunk"></div>
+                <div class="tree-leaves"></div>
+            </div>
+            <div class="tree" style="left: 1600px; bottom: 50px;">
+                <div class="tree-trunk"></div>
+                <div class="tree-leaves"></div>
+            </div>
+            
+            <!-- 蘑菇 -->
+            <div class="mushroom" style="left: 150px; bottom: 50px;">
+                <div class="mushroom-cap"></div>
+                <div class="mushroom-stem"></div>
+            </div>
+            <div class="mushroom" style="left: 350px; bottom: 50px;">
+                <div class="mushroom-cap"></div>
+                <div class="mushroom-stem"></div>
+            </div>
+            <div class="mushroom" style="left: 550px; bottom: 50px;">
+                <div class="mushroom-cap"></div>
+                <div class="mushroom-stem"></div>
+            </div>
+            <div class="mushroom" style="left: 750px; bottom: 50px;">
+                <div class="mushroom-cap"></div>
+                <div class="mushroom-stem"></div>
+            </div>
+            <div class="mushroom" style="left: 1050px; bottom: 50px;">
+                <div class="mushroom-cap"></div>
+                <div class="mushroom-stem"></div>
+            </div>
+            <div class="mushroom" style="left: 1250px; bottom: 50px;">
+                <div class="mushroom-cap"></div>
+                <div class="mushroom-stem"></div>
+            </div>
+            <div class="mushroom" style="left: 1450px; bottom: 50px;">
+                <div class="mushroom-cap"></div>
+                <div class="mushroom-stem"></div>
+            </div>
+            <div class="mushroom" style="left: 1650px; bottom: 50px;">
+                <div class="mushroom-cap"></div>
+                <div class="mushroom-stem"></div>
+            </div>
+            
+            <!-- 旗子 -->
+            <div class="flag" style="left: 1800px; bottom: 50px;">
+                <div class="flag-pole"></div>
+                <div class="flag-top"></div>
+            </div>
+        </div>
+        
+        <div class="game-over" id="gameOver">
+            <div>游戏结束</div>
+            <div>最终分数: <span id="finalScore">0</span></div>
+            <button onclick="restartGame()">重新开始</button>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="moveLeft()">←</button>
+            <button class="control-btn" onclick="moveRight()">→</button>
+        </div>
+        
+        <button class="jump-btn" onclick="jump()">跳跃</button>
+    </div>
+
+    <script>
+        // 游戏状态
+        let gameState = {
+            player: {
+                x: 50,
+                y: 300,
+                width: 40,
+                height: 60,
+                vx: 0,
+                vy: 0,
+                onGround: false,
+                isJumping: false,
+                direction: 'right'
+            },
+            enemies: [],
+            coins: [],
+            platforms: [],
+            score: 0,
+            coinsCollected: 0,
+            lives: 3,
+            level: 1,
+            gameRunning: true,
+            gravity: 0.5,
+            jumpPower: -15,
+            moveSpeed: 5,
+            cameraX: 0
+        };
+
+        // DOM元素
+        const playerElement = document.getElementById('player');
+        const gameWorld = document.getElementById('gameWorld');
+        const scoreElement = document.getElementById('score');
+        const coinsElement = document.getElementById('coins');
+        const livesElement = document.getElementById('lives');
+        const levelElement = document.getElementById('level');
+        const gameOverElement = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        // 键盘状态
+        const keys = {
+            left: false,
+            right: false,
+            jump: false
+        };
+
+        // 初始化游戏
+        function initGame() {
+            // 创建敌人
+            createEnemies();
+            
+            // 创建金币
+            createCoins();
+            
+            // 获取平台
+            gameState.platforms = document.querySelectorAll('.platform');
+            
+            // 游戏循环
+            gameLoop();
+        }
+
+        // 创建敌人
+        function createEnemies() {
+            const enemyPositions = [300, 500, 700, 900, 1100, 1300, 1500, 1700];
+            
+            enemyPositions.forEach(pos => {
+                const enemy = {
+                    id: Date.now() + Math.random(),
+                    x: pos,
+                    y: 320,
+                    width: 30,
+                    height: 30,
+                    vx: 2,
+                    direction: 'right'
+                };
+                
+                gameState.enemies.push(enemy);
+                
+                const enemyElement = document.createElement('div');
+                enemyElement.className = 'enemy';
+                enemyElement.id = `enemy-${enemy.id}`;
+                enemyElement.style.left = `${enemy.x}px`;
+                enemyElement.style.top = `${enemy.y}px`;
+                gameWorld.appendChild(enemyElement);
+            });
+        }
+
+        // 创建金币
+        function createCoins() {
+            const coinPositions = [
+                {x: 250, y: 250}, 
+                {x: 450, y: 300}, 
+                {x: 650, y: 350}, 
+                {x: 850, y: 250}, 
+                {x: 1050, y: 300}, 
+                {x: 1250, y: 350}, 
+                {x: 1450, y: 250}, 
+                {x: 1650, y: 300}
+            ];
+            
+            coinPositions.forEach(pos => {
+                const coin = {
+                    id: Date.now() + Math.random(),
+                    x: pos.x,
+                    y: pos.y,
+                    width: 20,
+                    height: 20,
+                    collected: false
+                };
+                
+                gameState.coins.push(coin);
+                
+                const coinElement = document.createElement('div');
+                coinElement.className = 'coin';
+                coinElement.id = `coin-${coin.id}`;
+                coinElement.style.left = `${coin.x}px`;
+                coinElement.style.top = `${coin.y}px`;
+                gameWorld.appendChild(coinElement);
+            });
+        }
+
+        // 游戏主循环
+        function gameLoop() {
+            if (!gameState.gameRunning) return;
+            
+            // 更新游戏逻辑
+            update();
+            
+            // 渲染
+            render();
+            
+            // 碰撞检测
+            checkCollisions();
+            
+            // 检查游戏结束
+            checkGameOver();
+            
+            // 检查关卡完成
+            checkLevelComplete();
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 更新游戏逻辑
+        function update() {
+            // 应用重力
+            if (!gameState.player.onGround) {
+                gameState.player.vy += gameState.gravity;
+            }
+            
+            // 玩家移动
+            if (keys.left) {
+                gameState.player.vx = -gameState.moveSpeed;
+                gameState.player.direction = 'left';
+            } else if (keys.right) {
+                gameState.player.vx = gameState.moveSpeed;
+                gameState.player.direction = 'right';
+            } else {
+                gameState.player.vx = 0;
+            }
+            
+            // 跳跃
+            if (keys.jump && gameState.player.onGround) {
+                gameState.player.vy = gameState.jumpPower;
+                gameState.player.onGround = false;
+                gameState.player.isJumping = true;
+            }
+            
+            // 更新玩家位置
+            gameState.player.x += gameState.player.vx;
+            gameState.player.y += gameState.player.vy;
+            
+            // 地面碰撞检测
+            if (gameState.player.y + gameState.player.height >= 350) {
+                gameState.player.y = 350 - gameState.player.height;
+                gameState.player.vy = 0;
+                gameState.player.onGround = true;
+                gameState.player.isJumping = false;
+            }
+            
+            // 平台碰撞检测
+            gameState.platforms.forEach(platform => {
+                const rect = platform.getBoundingClientRect();
+                const platformRect = {
+                    x: parseInt(platform.style.left),
+                    y: parseInt(platform.style.bottom) + 50,
+                    width: parseInt(platform.style.width),
+                    height: parseInt(platform.style.height)
+                };
+                
+                if (gameState.player.x + gameState.player.width > platformRect.x &&
+                    gameState.player.x < platformRect.x + platformRect.width &&
+                    gameState.player.y + gameState.player.height > platformRect.y &&
+                    gameState.player.y + gameState.player.height < platformRect.y + platformRect.height + 10 &&
+                    gameState.player.vy > 0) {
+                    
+                    gameState.player.y = platformRect.y - gameState.player.height;
+                    gameState.player.vy = 0;
+                    gameState.player.onGround = true;
+                    gameState.player.isJumping = false;
+                }
+            });
+            
+            // 更新敌人
+            updateEnemies();
+            
+            // 更新相机
+            updateCamera();
+        }
+
+        // 更新敌人
+        function updateEnemies() {
+            gameState.enemies.forEach(enemy => {
+                // 敌人左右移动
+                enemy.x += enemy.vx;
+                
+                // 敌人边界检测
+                if (enemy.x <= 0 || enemy.x >= 1970) {
+                    enemy.vx = -enemy.vx;
+                }
+                
+                // 更新DOM
+                const enemyElement = document.getElementById(`enemy-${enemy.id}`);
+                if (enemyElement) {
+                    enemyElement.style.left = `${enemy.x}px`;
+                }
+            });
+        }
+
+        // 更新相机
+        function updateCamera() {
+            // 相机跟随玩家，保持玩家在屏幕中央
+            gameState.cameraX = gameState.player.x - 400;
+            
+            // 相机边界检测
+            if (gameState.cameraX < 0) gameState.cameraX = 0;
+            if (gameState.cameraX > 1200) gameState.cameraX = 1200;
+        }
+
+        // 渲染
+        function render() {
+            // 更新玩家位置
+            playerElement.style.left = `${gameState.player.x}px`;
+            playerElement.style.top = `${gameState.player.y}px`;
+            playerElement.style.transform = gameState.player.direction === 'left' ? 'scaleX(-1)' : 'scaleX(1)';
+            
+            // 移动游戏世界
+            gameWorld.style.transform = `translateX(${-gameState.cameraX}px)`;
+        }
+
+        // 碰撞检测
+        function checkCollisions() {
+            // 玩家与敌人碰撞
+            gameState.enemies.forEach(enemy => {
+                if (gameState.player.x + gameState.player.width > enemy.x &&
+                    gameState.player.x < enemy.x + enemy.width &&
+                    gameState.player.y + gameState.player.height > enemy.y &&
+                    gameState.player.y < enemy.y + enemy.height) {
+                    
+                    // 玩家从上方踩敌人
+                    if (gameState.player.vy > 0 && gameState.player.y + gameState.player.height < enemy.y + enemy.height / 2) {
+                        // 消灭敌人
+                        const enemyElement = document.getElementById(`enemy-${enemy.id}`);
+                        if (enemyElement) {
+                            enemyElement.remove();
+                        }
+                        gameState.enemies = gameState.enemies.filter(e => e.id !== enemy.id);
+                        
+                        // 玩家反弹
+                        gameState.player.vy = -10;
+                        
+                        // 增加分数
+                        gameState.score += 100;
+                    } else {
+                        // 玩家受到伤害
+                        loseLife();
+                    }
+                }
+            });
+            
+            // 玩家与金币碰撞
+            gameState.coins.forEach(coin => {
+                if (!coin.collected &&
+                    gameState.player.x + gameState.player.width > coin.x &&
+                    gameState.player.x < coin.x + coin.width &&
+                    gameState.player.y + gameState.player.height > coin.y &&
+                    gameState.player.y < coin.y + coin.height) {
+                    
+                    // 收集金币
+                    coin.collected = true;
+                    const coinElement = document.getElementById(`coin-${coin.id}`);
+                    if (coinElement) {
+                        coinElement.remove();
+                    }
+                    
+                    // 增加分数和金币计数
+                    gameState.score += 50;
+                    gameState.coinsCollected++;
+                }
+            });
+        }
+
+        // 失去生命
+        function loseLife() {
+            gameState.lives--;
+            
+            // 重置玩家位置
+            gameState.player.x = 50;
+            gameState.player.y = 300;
+            gameState.player.vx = 0;
+            gameState.player.vy = 0;
+            gameState.player.onGround = true;
+        }
+
+        // 检查游戏结束
+        function checkGameOver() {
+            if (gameState.lives <= 0) {
+                gameOver();
+            }
+        }
+
+        // 检查关卡完成
+        function checkLevelComplete() {
+            // 玩家到达旗子位置
+            if (gameState.player.x >= 1800) {
+                alert('关卡完成！');
+                nextLevel();
+            }
+        }
+
+        // 下一关
+        function nextLevel() {
+            gameState.level++;
+            
+            // 重置游戏状态
+            gameState.player.x = 50;
+            gameState.player.y = 300;
+            gameState.player.vx = 0;
+            gameState.player.vy = 0;
+            gameState.player.onGround = true;
+            
+            // 清空敌人和金币
+            gameState.enemies.forEach(enemy => {
+                const enemyElement = document.getElementById(`enemy-${enemy.id}`);
+                if (enemyElement) {
+                    enemyElement.remove();
+                }
+            });
+            
+            gameState.coins.forEach(coin => {
+                const coinElement = document.getElementById(`coin-${coin.id}`);
+                if (coinElement) {
+                    coinElement.remove();
+                }
+            });
+            
+            gameState.enemies = [];
+            gameState.coins = [];
+            
+            // 重新创建敌人和金币
+            createEnemies();
+            createCoins();
+        }
+
+        // 游戏结束
+        function gameOver() {
+            gameState.gameRunning = false;
+            finalScoreElement.textContent = gameState.score;
+            gameOverElement.style.display = 'block';
+        }
+
+        // 重新开始游戏
+        function restartGame() {
+            // 重置游戏状态
+            gameState = {
+                player: {
+                    x: 50,
+                    y: 300,
+                    width: 40,
+                    height: 60,
+                    vx: 0,
+                    vy: 0,
+                    onGround: false,
+                    isJumping: false,
+                    direction: 'right'
+                },
+                enemies: [],
+                coins: [],
+                platforms: [],
+                score: 0,
+                coinsCollected: 0,
+                lives: 3,
+                level: 1,
+                gameRunning: true,
+                gravity: 0.5,
+                jumpPower: -15,
+                moveSpeed: 5,
+                cameraX: 0
+            };
+            
+            // 清空游戏世界
+            const enemies = document.querySelectorAll('.enemy');
+            const coins = document.querySelectorAll('.coin');
+            enemies.forEach(enemy => enemy.remove());
+            coins.forEach(coin => coin.remove());
+            
+            // 重新创建敌人和金币
+            createEnemies();
+            createCoins();
+            
+            // 更新UI
+            updateUI();
+            
+            // 隐藏游戏结束界面
+            gameOverElement.style.display = 'none';
+            
+            // 重新开始游戏循环
+            gameLoop();
+        }
+
+        // 更新UI
+        function updateUI() {
+            scoreElement.textContent = gameState.score;
+            coinsElement.textContent = gameState.coinsCollected;
+            livesElement.textContent = gameState.lives;
+            levelElement.textContent = gameState.level;
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft':
+                    keys.left = true;
+                    break;
+                case 'ArrowRight':
+                    keys.right = true;
+                    break;
+                case 'ArrowUp':
+                case ' ':
+                    keys.jump = true;
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft':
+                    keys.left = false;
+                    break;
+                case 'ArrowRight':
+                    keys.right = false;
+                    break;
+                case 'ArrowUp':
+                case ' ':
+                    keys.jump = false;
+                    break;
+            }
+        });
+
+        // 按钮控制
+        function moveLeft() {
+            keys.left = true;
+            setTimeout(() => { keys.left = false; }, 100);
+        }
+
+        function moveRight() {
+            keys.right = true;
+            setTimeout(() => { keys.right = false; }, 100);
+        }
+
+        function jump() {
+            keys.jump = true;
+            setTimeout(() => { keys.jump = false; }, 100);
+        }
+
+        // 初始化游戏
+        initGame();
+    </script>
+</body>
+</html>
