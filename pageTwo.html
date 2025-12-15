@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡片移动动画</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        #app {
+            width: 100%;
+            overflow: hidden;
+            background: chartreuse;
+        }
+
+        .scroll-box {
+            margin: 20px auto;
+            width: 1470px;
+            overflow: hidden;
+        }
+
+        .words-list {
+            display: flex;
+            align-items: center;
+            grid-gap: 0 30px;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .words-list-item {
+            min-width: 336px;
+            height: 420px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+        }
+
+        .hidden {
+            transform: translateY(100%);
+            opacity: 0;
+        }
+
+        .new-card {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        .slide-in {
+            transform: translateX(0);
+            opacity: 1;
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+        }
+
+        [v-cloak] {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <div class="scroll-box">
+            <div class="words-list">
+                <div class="words-list-item" v-for="(item, index) in dataList" :key="index" :class="`${item.isHidden ? 'hidden' : ''}`" @click="handleClick(item, index)">{{ item.name }}</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                dataList: [
+                    { name: '卡片1' },
+                    { name: '卡片2' },
+                    { name: '卡片3' },
+                    { name: '卡片4' },
+                    { name: '卡片5' }
+                ]
+            },
+            methods: {
+                handleClick(item, index) {
+                    item.isHidden = true;
+
+                    setTimeout(() => {
+                        this.dataList.splice(index, 1);
+                        this.addNewCard();
+                    }, 500); // 等待动画完成再移除卡片
+                },
+                addNewCard() {
+                    const newItem = { name: '新卡片', isHidden: false };
+                    this.dataList.push(newItem);
+
+                    // 等待下次 DOM 更新完成后，再添加动画类
+                    this.$nextTick(() => {
+                        const newElement = document.querySelectorAll('.words-list-item')[this.dataList.length - 1];
+                        newElement.classList.add('new-card');
+                        setTimeout(() => {
+                            newElement.classList.remove('new-card');
+                            newElement.classList.add('slide-in');
+                        }, 10); // 延迟时间确保动画类正确应用
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
