@@ -1,0 +1,92 @@
+<!--
+ * @Description: 网站动画
+ * @Author: zhang zhen
+ * @Date: 2024-08-06 14:22:10
+ * @LastEditors: zhang zhen
+ * @LastEditTime: 2024-08-06 15:34:43
+ * @FilePath: /animation/index.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>动画</title>
+    <link rel="stylesheet" href="./style.css">
+    <style>
+        [v-cloak] {
+          display: none;
+        }
+      </style>
+    <script src="./vue.js"></script>
+</head>
+<body>
+    <div class="container" id="app">
+        <div class="case-h-title">打造十大行业增长王</div>
+        <div class="flex-wrap" v-cloak>
+            <div class="rise-case-item" v-for="(item, index) in dataList" :key="index">
+                <img :src="item.bannerUrl" alt="" class="open-case-modal">
+                <div class="view-case-more">
+                    <span class="name">{{ item.name }}</span>
+                    <a href="javascript:;" class="view-more">查看详情</a>
+                </div>
+                <div class="case-cover-mask">
+                    <img :src="item.logoUrl" alt="" class="case-logo">
+                    <div class="case-mask-bottom">
+                        <span class="name">{{ item.name }}</span>
+                        <p>{{ item.desc }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const app = new Vue({
+            el: '#app',
+            data: {
+                dataList: [
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/fe3dfc16595ef9003f14fe31f65a4cec.png',
+                        name: '千禾味业',
+                        desc: '0添加酱油挑战行业霸主',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230713/e2c542ef7d1275932172b25a1d780c88.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/c694f91296b6ec9c1d0d69585db04d0e.png',
+                        name: '王老吉',
+                        desc: '“正宗”定位调动心智力量，助力王老吉重归凉茶王者地位',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230713/31a2aa8f40000515e09fb557be37abbb.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/5e7aa3be15a081e9a5764d98e57e8191.png',
+                        name: '洽洽',
+                        desc: '布局第二增长曲线，助力洽洽把握坚果行业增长极',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230712/5e7aa3be15a081e9a5764d98e57e8191.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230721/60a20dc7916e34e2e1e56c1e9a7c7999.png',
+                        name: '三只松鼠',
+                        desc: '打造坚果领导者定位，集聚品牌势能，助力线下拓展',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230721/8833b94673d2922b63f8a5b545aabb52.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230713/e6b604cca9073d1832b155f8fb532bec.png',
+                        name: '德邦',
+                        desc: '品类创新助力德邦晋升大件快递之王',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230713/2f7d708c8a034a578218686bfae49e19.png'
+                    },
+                    {
+                        bannerUrl: 'https://www.ries.com.cn/storage/images/20230712/27ffea3dc8a373e058c39ce7301a5170.png',
+                        name: '习酒',
+                        desc: '大师与时间的杰作，成就酱酒数一数二品牌',
+                        logoUrl: 'https://www.ries.com.cn/storage/images/20230721/8833b94673d2922b63f8a5b545aabb52.png'
+                    }
+                ]
+            },
+            methods: {
+                
+            }
+        })
+    </script>
+</body>
+</html>
