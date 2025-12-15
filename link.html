@@ -1,0 +1,62 @@
+<!--
+ * @Description: main description
+ * @Author: zhang zhen
+ * @Date: 2024-09-11 11:11:41
+ * @LastEditors: zhang zhen
+ * @LastEditTime: 2024-09-11 11:34:29
+ * @FilePath: /animation/link.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>link</title>
+    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+</head>
+
+<body>
+    <!-- <wx-open-launch-weapp id="launch-btn" appid="wxf812eea74e3a6be8" path="pages/index/index">
+        <script type="text/wxtag-template">
+    <style>.btn { padding: 12px }</style>
+    <button class="btn">打开小程序</button>
+  </script>
+    </wx-open-launch-weapp>
+    <script>
+        var btn = document.getElementById('launch-btn');
+        btn.addEventListener('launch', function (e) {
+            console.log('success');
+        });
+        btn.addEventListener('error', function (e) {
+            console.log('fail', e.detail);
+        });
+    </script> -->
+
+    <wx-open-launch-weapp
+    username="gh_*******"
+    path="pages/******/******.html"
+    id="open-launch"
+    v-if="phoneAuth"
+    @launch="onLaunch"
+    @error="onError"
+>
+  <script type="text/wxtag-template">
+    <style>
+      .btn {
+        width: 92px;
+        height: 92px;
+      }
+    </style>
+    <div class="btn"></div>
+  </script>
+</wx-open-launch-weapp>
+    <script>
+        // window.onload = function(){
+        //     // window.open('weixin://dl/business/?appid=wxf812eea74e3a6be8&path=pages/index/index&env_version=release')
+        //     window.location.href = `#小程序://龙湖天街/LZn13kLNVN4MqJE`;
+        // }
+    </script>
+</body>
+
+</html>
