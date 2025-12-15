@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手势魔法阵 - Strange Magic</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        
+        #input_video { position: absolute; top: 0; left: 0; opacity: 0; pointer-events: none; }
+        #output_canvas { display: block; width: 100vw; height: 100vh; }
+
+        /* UI 面板 */
+        #ui-panel {
+            position: absolute; top: 20px; right: 20px;
+            width: 260px; padding: 20px;
+            background: rgba(10, 10, 20, 0.7);
+            border: 1px solid rgba(255, 200, 100, 0.3);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            color: #ffd700;
+            font-family: 'Courier New', monospace;
+            z-index: 100;
+        }
+
+        h2 { margin: 0 0 15px 0; font-size: 18px; text-transform: uppercase; letter-spacing: 2px; text-align: center; text-shadow: 0 0 10px #ffd700; }
+        
+        .control-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; opacity: 0.8; margin-bottom: 5px; }
+        
+        select, input[type="color"] {
+            width: 100%; padding: 8px;
+            background: rgba(0,0,0,0.5); border: 1px solid #ffd700;
+            color: #ffd700; border-radius: 4px; outline: none;
+        }
+        
+        #status { font-size: 12px; text-align: center; color: #00ffcc; margin-top: 10px; }
+
+        #overlay {
+            position: absolute; bottom: 30px; width: 100%; text-align: center;
+            color: rgba(255, 215, 0, 0.8); font-size: 16px; pointer-events: none;
+            text-shadow: 0 0 10px rgba(255, 100, 0, 0.5);
+            font-family: 'Courier New', cursive;
+        }
+    </style>
+</head>
+<body>
+
+    <video id="input_video" playsinline></video>
+    
+    <div id="ui-panel">
+        <h2>Arcane Arts</h2>
+        
+        <div class="control-group">
+            <label>MAGIC STYLE (法阵样式)</label>
+            <select id="styleSelect">
+                <option value="strange">Eldritch (秘术金)</option>
+                <option value="cyber">Cyberpunk (赛博青)</option>
+                <option value="dark">Void (虚空紫)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>CORE COLOR (核心颜色)</label>
+            <input type="color" id="colorPicker" value="#ffaa00">
+        </div>
+
+        <div id="status">初始化视觉传感器...</div>
+    </div>
+
+    <div id="overlay">
+        🖐 <b>张开手掌</b> 召唤法阵 &nbsp;|&nbsp; ✊ <b>握拳</b> 关闭法阵
+    </div>
+
+    <canvas id="output_canvas"></canvas>
+
+    <!-- 依赖库 -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+
+        // --- 1. 配置与状态 ---
+        const config = {
+            baseColor: new THREE.Color(0xffaa00),
+            smoothing: 0.15, // 动作平滑度
+            scaleSpeed: 0.1
+        };
+
+        const handsData = {
+            left: { visible: false, position: new THREE.Vector3(), rotation: new THREE.Quaternion(), open: 0 },
+            right: { visible: false, position: new THREE.Vector3(), rotation: new THREE.Quaternion(), open: 0 }
+        };
+
+        // --- 2. 纹理生成器 (Procedural Textures) ---
+        // 使用 Canvas 2D 绘制复杂的魔法图案，作为纹理贴图
+        function createMagicTexture(type) {
+            const size = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            const cx = size / 2;
+            const cy = size / 2;
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ffffff';
+            ctx.lineWidth = 3;
+
+            if (type === 'ring_runes') {
+                // 外圈符文
+                ctx.beginPath();
+                ctx.arc(cx, cy, 200, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(cx, cy, 180, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 绘制符文文字
+                ctx.font = '24px serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789";
+                const count = 24;
+                for (let i = 0; i < count; i++) {
+                    const angle = (i / count) * Math.PI * 2;
+                    ctx.save();
+                    ctx.translate(cx + Math.cos(angle) * 190, cy + Math.sin(angle) * 190);
+                    ctx.rotate(angle + Math.PI / 2);
+                    ctx.fillText(chars[i % chars.length], 0, 0);
+                    ctx.restore();
+                }
+            } else if (type === 'geometry_square') {
+                // 内部几何：两个正方形旋转叠加
+                ctx.lineWidth = 4;
+                const drawSquare = (rot) => {
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.rotate(rot);
+                    const r = 140;
+                    ctx.beginPath();
+                    ctx.moveTo(-r, -r);
+                    ctx.lineTo(r, -r);
+                    ctx.lineTo(r, r);
+                    ctx.lineTo(-r, r);
+                    ctx.closePath();
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                drawSquare(0);
+                drawSquare(Math.PI / 4);
+                
+                // 内部文字圈
+                ctx.beginPath();
+                ctx.arc(cx, cy, 90, 0, Math.PI * 2);
+                ctx.stroke();
+            } else if (type === 'core_complex') {
+                // 核心图案
+                for(let i=0; i<3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, 30 + i*20, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                // 绘制三角形
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 60);
+                ctx.lineTo(cx + 52, cy + 30);
+                ctx.lineTo(cx - 52, cy + 30);
+                ctx.closePath();
+                ctx.stroke();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        // --- 3. 魔法阵类 (Magic Circle Object) ---
+        class MagicCircle {
+            constructor() {
+                this.meshGroup = new THREE.Group();
+                this.layers = [];
+                this.currentScale = 0;
+                this.targetScale = 0;
+
+                // 创建三层不同的图案
+                this.addLayer(createMagicTexture('ring_runes'), 2.0, 0.01);
+                this.addLayer(createMagicTexture('geometry_square'), 1.4, -0.02);
+                this.addLayer(createMagicTexture('core_complex'), 0.6, 0.04);
+
+                scene.add(this.meshGroup);
+            }
+
+            addLayer(texture, size, rotSpeed) {
+                const geometry = new THREE.PlaneGeometry(size, size);
+                const material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    color: config.baseColor,
+                    transparent: true,
+                    opacity: 0.9,
+                    side: THREE.DoubleSide,
+                    blending: THREE.AdditiveBlending, // 关键：加法混合实现发光感
+                    depthWrite: false
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.rotSpeed = rotSpeed;
+                this.meshGroup.add(mesh);
+                this.layers.push(mesh);
+            }
+
+            update(handData) {
+                // 平滑位置
+                this.meshGroup.position.lerp(handData.position, config.smoothing);
+                
+                // 平滑旋转 (跟随手掌朝向)
+                this.meshGroup.quaternion.slerp(handData.rotation, config.smoothing);
+
+                // 状态逻辑：手张开则显示，手握拳则消失
+                // handData.open 是一个 0-1 的值，1代表全张开
+                const isOpen = handData.open > 0.6; 
+                this.targetScale = isOpen ? 1 : 0;
+
+                // 动态缩放动画
+                this.currentScale += (this.targetScale - this.currentScale) * config.scaleSpeed;
+                this.meshGroup.scale.setScalar(this.currentScale);
+
+                // 自身旋转动画
+                if (this.currentScale > 0.01) {
+                    this.layers.forEach(layer => {
+                        layer.rotation.z += layer.rotSpeed;
+                    });
+                }
+
+                // 颜色更新
+                this.layers.forEach(layer => {
+                    layer.material.color.lerp(config.baseColor, 0.1);
+                    // 简单的闪烁效果
+                    layer.material.opacity = 0.7 + Math.sin(Date.now() * 0.005) * 0.2;
+                });
+            }
+        }
+
+        // --- 4. Three.js 初始化 ---
+        const canvas = document.getElementById('output_canvas');
+        const scene = new THREE.Scene();
+        
+        // 摄像机设置
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 5); // 稍微离远一点
+
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        // 创建两个魔法阵实例（左右手）
+        const circleLeft = new MagicCircle();
+        const circleRight = new MagicCircle();
+
+        // --- 5. MediaPipe Hands 处理逻辑 ---
+        const videoElement = document.getElementById('input_video');
+        const statusEl = document.getElementById('status');
+
+        function onResults(results) {
+            // 重置状态
+            handsData.left.visible = false;
+            handsData.right.visible = false;
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                results.multiHandLandmarks.forEach((landmarks, index) => {
+                    // 判断左右手
+                    const classification = results.multiHandedness[index];
+                    const isRight = classification.label === 'Right'; // MediaPipe是镜像的，通常这里反着来，或者根据摄像头镜像调整
+                    const target = isRight ? handsData.right : handsData.left;
+                    
+                    target.visible = true;
+
+                    // 1. 获取位置 (使用手掌中心: 索引0和9的中间)
+                    const wrist = landmarks[0];
+                    const middleMCP = landmarks[9];
+                    
+                    // 坐标转换 (MediaPipe 0-1 => Three.js 视口坐标)
+                    // x 需要反转 (镜像)
+                    const x = (-(wrist.x + middleMCP.x) / 2 + 0.5) * 8; // 8是视口宽度倍率
+                    const y = -((wrist.y + middleMCP.y) / 2 - 0.5) * 6; // 6是视口高度倍率
+                    const z = -landmarks[0].z * 10; // 深度
+
+                    target.position.set(x, y, z);
+
+                    // 2. 计算手掌张开程度 (计算指尖到手腕的平均距离)
+                    // 拇指4, 食指8, 中指12, 无名指16, 小指20
+                    const tips = [4, 8, 12, 16, 20];
+                    let totalDist = 0;
+                    tips.forEach(idx => {
+                        const tip = landmarks[idx];
+                        totalDist += Math.sqrt(Math.pow(tip.x - wrist.x, 2) + Math.pow(tip.y - wrist.y, 2));
+                    });
+                    const avgDist = totalDist / 5;
+                    // 阈值映射：<0.2 认为是拳头, >0.35 认为是张开
+                    target.open = Math.min(Math.max((avgDist - 0.2) * 5, 0), 1); 
+
+                    // 3. 计算旋转 (根据手掌法线)
+                    // 简单做法：利用 Wrist(0), IndexMCP(5), PinkyMCP(17) 构建平面
+                    const p0 = new THREE.Vector3(landmarks[0].x, landmarks[0].y, landmarks[0].z);
+                    const p5 = new THREE.Vector3(landmarks[5].x, landmarks[5].y, landmarks[5].z);
+                    const p17 = new THREE.Vector3(landmarks[17].x, landmarks[17].y, landmarks[17].z);
+                    
+                    const v1 = new THREE.Vector3().subVectors(p5, p0);
+                    const v2 = new THREE.Vector3().subVectors(p17, p0);
+                    const normal = new THREE.Vector3().crossVectors(v1, v2).normalize();
+                    
+                    // 将法线转换为旋转四元数 (目标是让平面朝向法线)
+                    // 这里简化：我们希望魔法阵平面对齐手掌。
+                    // 魔法阵默认是XY平面。
+                    const dummyObj = new THREE.Object3D();
+                    dummyObj.lookAt(normal.x, -normal.y, -normal.z); // 简单的法线朝向修正
+                    target.rotation.copy(dummyObj.quaternion);
+                });
+                statusEl.innerText = "追踪中 - 施展魔法吧！";
+                statusEl.style.color = "#00ffcc";
+            } else {
+                statusEl.innerText = "等待手部进入视野...";
+                statusEl.style.color = "#ffaa00";
+            }
+        }
+
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        const cameraUtils = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640, height: 480
+        });
+        cameraUtils.start();
+
+        // --- 6. 交互 UI 逻辑 ---
+        document.getElementById('colorPicker').addEventListener('input', (e) => {
+            config.baseColor.set(e.target.value);
+        });
+
+        document.getElementById('styleSelect').addEventListener('change', (e) => {
+            const val = e.target.value;
+            if(val === 'strange') config.baseColor.setHex(0xffaa00);
+            if(val === 'cyber') config.baseColor.setHex(0x00ffff);
+            if(val === 'dark') config.baseColor.setHex(0x9900ff);
+            document.getElementById('colorPicker').value = '#' + config.baseColor.getHexString();
+        });
+
+        // --- 7. 渲染循环 ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 如果没有检测到手，位置稍微归中，且让其不可见(通过scale控制)
+            if (!handsData.left.visible) handsData.left.open = 0;
+            if (!handsData.right.visible) handsData.right.open = 0;
+
+            circleLeft.update(handsData.left);
+            circleRight.update(handsData.right);
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
+</body>
+</html>
