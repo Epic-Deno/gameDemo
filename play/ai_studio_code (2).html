@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 手势识别</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #1e1e1e;
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        h1 { margin-top: 10px; font-size: 24px; color: #00ffcc; text-shadow: 0 0 10px rgba(0,255,204,0.5); }
+
+        .container {
+            position: relative;
+            margin-top: 20px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 640px;
+            height: 480px;
+            background: #000;
+        }
+
+        /* 视频和画布重叠 */
+        #input_video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            transform: scaleX(-1); /* 镜像翻转 */
+            object-fit: cover;
+        }
+
+        #output_canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            transform: scaleX(-1); /* 画布也要镜像，否则骨骼对不上 */
+        }
+
+        /* 识别结果展示面板 */
+        #result-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 28px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            opacity: 0; /* 初始隐藏 */
+        }
+        
+        #result-panel.show { opacity: 1; }
+
+        .emoji { font-size: 40px; }
+
+        #loading {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffcc;
+            font-size: 18px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🖐️ AI 实时手势识别</h1>
+
+    <div class="container">
+        <div id="loading">正在加载 AI 模型，请稍候...</div>
+        <video id="input_video" playsinline></video>
+        <canvas id="output_canvas"></canvas>
+        
+        <div id="result-panel">
+            <span id="gesture-emoji">🤔</span>
+            <span id="gesture-name">检测中...</span>
+        </div>
+    </div>
+
+    <!-- 引入 MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <script>
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const resultPanel = document.getElementById('result-panel');
+        const gestureNameEl = document.getElementById('gesture-name');
+        const gestureEmojiEl = document.getElementById('gesture-emoji');
+        const loadingEl = document.getElementById('loading');
+
+        // 设置画布尺寸
+        canvasElement.width = 640;
+        canvasElement.height = 480;
+
+        /**
+         * 简单的几何算法：判断手指是伸直还是弯曲
+         * @param {Array} landmarks - 21个关键点
+         * @returns {Array} - [拇指, 食指, 中指, 无名指, 小指] (1=伸直, 0=弯曲)
+         */
+        function getFingerStatus(landmarks) {
+            const fingers = [];
+            
+            // 关键点索引
+            // 拇指: 4 (Tip), 3 (IP), 2 (MCP)
+            // 食指: 8 (Tip), 6 (PIP)
+            // 中指: 12 (Tip), 10 (PIP)
+            // 无名指: 16 (Tip), 14 (PIP)
+            // 小指: 20 (Tip), 18 (PIP)
+
+            // 1. 拇指判断 (比较 X 轴距离)
+            // 注意：因为是镜像，左右手逻辑相反，这里简化处理：
+            // 判断拇指指尖是否比指关节更远离手掌中心(小指根部17)
+            const thumbTip = landmarks[4];
+            const thumbIp = landmarks[3];
+            const pinkyMcp = landmarks[17];
+            
+            // 计算拇指指尖到小指根部的距离 vs 拇指关节到小指根部的距离
+            const distTip = Math.hypot(thumbTip.x - pinkyMcp.x, thumbTip.y - pinkyMcp.y);
+            const distIp = Math.hypot(thumbIp.x - pinkyMcp.x, thumbIp.y - pinkyMcp.y);
+            
+            // 如果指尖距离更远，说明伸直
+            fingers.push(distTip > distIp * 1.1 ? 1 : 0);
+
+            // 2. 其他四指判断 (比较 Y 轴)
+            // 在屏幕坐标系中，y越小越靠上。如果指尖(Tip)的y < 关节(PIP)的y，说明手指是竖直向上的
+            const fingerIndices = [8, 12, 16, 20]; // 食指、中指、无名指、小指
+            const pipIndices = [6, 10, 14, 18];   // 对应的中间关节
+
+            for (let i = 0; i < 4; i++) {
+                const tip = landmarks[fingerIndices[i]];
+                const pip = landmarks[pipIndices[i]];
+                // 还要考虑手掌倒置的情况，这里使用掌心(0)到中指根(9)的向量作为参考会更准
+                // 但为了简化代码，我们假设用户手掌是朝上的（常规手势）
+                // 改进：计算点积或简单比较Y值 (Tip Y < Pip Y)
+                if (tip.y < pip.y) {
+                    fingers.push(1);
+                } else {
+                    fingers.push(0);
+                }
+            }
+            return fingers;
+        }
+
+        /**
+         * 识别手势名称
+         */
+        function recognizeGesture(fingers) {
+            // fingers: [拇指, 食指, 中指, 无名指, 小指]
+            const f = fingers;
+            
+            // 5指全张开 -> 布
+            if (f[0] && f[1] && f[2] && f[3] && f[4]) return { name: "布 (Paper)", emoji: "🖐️" };
+            
+            // 5指全弯曲 -> 石头
+            if (!f[0] && !f[1] && !f[2] && !f[3] && !f[4]) return { name: "石头 (Rock)", emoji: "✊" };
+            
+            // 食指+中指伸直，其他弯曲 -> 剪刀
+            if (!f[0] && f[1] && f[2] && !f[3] && !f[4]) return { name: "剪刀 (Scissors)", emoji: "✌️" };
+            
+            // 拇指伸直，其他弯曲 -> 点赞
+            if (f[0] && !f[1] && !f[2] && !f[3] && !f[4]) return { name: "点赞 (Good)", emoji: "👍" };
+            
+            // 拇指+食指+小指 -> 爱你
+            if (f[0] && f[1] && !f[2] && !f[3] && f[4]) return { name: "爱你 (Love)", emoji: "🤟" };
+            
+            // 食指伸直 -> 1
+            if (!f[0] && f[1] && !f[2] && !f[3] && !f[4]) return { name: "一 (One)", emoji: "☝️" };
+            
+            // 小指伸直 -> Pinky
+            if (!f[0] && !f[1] && !f[2] && !f[3] && f[4]) return { name: "约定 (Pinky)", emoji: "🤙" };
+
+            // 拇指+小指 -> 666
+            if (f[0] && !f[1] && !f[2] && !f[3] && f[4]) return { name: "666 (Six)", emoji: "🤙" };
+
+             // 食指+小指 -> Rock n Roll
+            if (!f[0] && f[1] && !f[2] && !f[3] && f[4]) return { name: "摇滚 (Rock)", emoji: "🤘" };
+
+            return { name: "", emoji: "" };
+        }
+
+        // --- MediaPipe 处理结果 ---
+        function onResults(results) {
+            loadingEl.style.display = 'none';
+            resultPanel.classList.add('show');
+
+            // 1. 清空画布并绘制视频帧
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+            // 2. 如果检测到手
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                // 只取第一只手
+                const landmarks = results.multiHandLandmarks[0];
+
+                // 绘制骨骼连线
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00ffcc', lineWidth: 5});
+                drawLandmarks(canvasCtx, landmarks, {color: '#ff3366', lineWidth: 2, radius: 4});
+
+                // 识别手势
+                const fingersStatus = getFingerStatus(landmarks);
+                const gesture = recognizeGesture(fingersStatus);
+
+                if (gesture.name) {
+                    gestureNameEl.innerText = gesture.name;
+                    gestureEmojiEl.innerText = gesture.emoji;
+                    resultPanel.style.background = "rgba(255, 255, 255, 0.95)";
+                } else {
+                    gestureNameEl.innerText = "未知手势";
+                    gestureEmojiEl.innerText = "🤷";
+                    resultPanel.style.background = "rgba(255, 255, 255, 0.7)";
+                }
+            } else {
+                gestureNameEl.innerText = "未检测到手";
+                gestureEmojiEl.innerText = "👀";
+            }
+
+            canvasCtx.restore();
+        }
+
+        // --- 初始化 MediaPipe Hands ---
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 1, // 只识别一只手，防止打架
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        // --- 启动摄像头 ---
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 640,
+            height: 480
+        });
+        camera.start();
+
+    </script>
+</body>
+</html>
